@@ -18,6 +18,13 @@ public class Car {
     private String carModel;
     private String carCategory;
     
+    public Car(Long carObjectId, String carMake, int carYear, String carModel, String carCategory) {
+        this.carObjectId = carObjectId;
+        this.carMake = carMake;
+        this.carYear = carYear;
+        this.carModel = carModel;
+        this.carCategory = carCategory;
+    }
     public Long getCarObjectId() {
         return carObjectId;
     }

@@ -1,47 +1,78 @@
 package ua.foxminded.cardatabase;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import ua.foxminded.cardatabase.model.Car;
-import ua.foxminded.cardatabase.dao.CarRepository;
+import ua.foxminded.cardatabase.controller.*;
+import ua.foxminded.cardatabase.service.CarService;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.web.servlet.MockMvc;
+
 import java.util.Optional;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 
-@SpringBootTest
-public class CarServiceTest {
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-    @Mock
-    private CarRepository carRepository;
+@ExtendWith(SpringExtension.class)
+@WebMvcTest(CarController.class)
+class CarControllerTest {
 
-    @InjectMocks
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
     private CarService carService;
 
-    @Test
-    void testCreateCar() {
-        Car car = new Car(1L, "Toyota", 2020, "Corolla", "Sedan");
-        when(carRepository.save(any(Car.class))).thenReturn(car);
+    @Autowired
+    private ObjectMapper objectMapper;
 
-        Car createdCar = carService.createCar(car);
-        assertEquals("Toyota", createdCar.getCarMake());
+    @Test
+    void createCar_ShouldReturnCreatedCar() throws Exception {
+        Car car = new Car(1L, "Toyota", 2021, "Corolla", "Sedan");
+
+        Mockito.when(carService.createCar(Mockito.any(Car.class))).thenReturn(car);
+
+        mockMvc.perform(post("/api/v1/manufacturers/Toyota/models/Corolla/2021")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(car)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.carMake").value("Toyota"))
+                .andExpect(jsonPath("$.carModel").value("Corolla"))
+                .andExpect(jsonPath("$.carYear").value(2021))
+                .andExpect(jsonPath("$.carCategory").value("Sedan"));
     }
 
     @Test
-    void testGetCarById() {
-        Car car = new Car(1L, "BMW", 2019, "X5", "SUV");
-        when(carRepository.findById(1L)).thenReturn(Optional.of(car));
+    void updateCar_ShouldReturnUpdatedCar() throws Exception {
+        Long carId = 1L;
+        Car updatedCar = new Car(carId, "Honda", 2022, "Civic", "Sedan");
 
-        Optional<Car> retrievedCar = carService.getCarById(1L);
-        assertEquals("BMW", retrievedCar.get().getCarMake());
+        Mockito.when(carService.updateCar(Mockito.eq(carId), Mockito.any(Car.class)))
+                .thenReturn(updatedCar);
+
+        mockMvc.perform(put("/api/v1/cars/{id}", carId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updatedCar)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.carMake").value("Honda"))
+                .andExpect(jsonPath("$.carModel").value("Civic"))
+                .andExpect(jsonPath("$.carYear").value(2022))
+                .andExpect(jsonPath("$.carCategory").value("Sedan"));
     }
 
     @Test
-    void testDeleteCar() {
-        carService.deleteCar(1L);
-        Mockito.verify(carRepository).deleteById(1L);
+    void deleteCar_ShouldReturnNoContent() throws Exception {
+        Long carId = 1L;
+
+        Mockito.doNothing().when(carService).deleteCar(carId);
+
+        mockMvc.perform(delete("/api/v1/cars/{id}", carId))
+                .andExpect(status().isNoContent());
     }
 }
