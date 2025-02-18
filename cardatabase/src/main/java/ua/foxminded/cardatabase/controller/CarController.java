@@ -12,8 +12,12 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1")
 public class CarController {
 
+    private final CarService carService;
+
     @Autowired
-    private CarService carService;
+    public CarController(CarService carService) {
+        this.carService = carService;
+    }
 
     @PostMapping("/manufacturers/{manufacturer}/models/{model}/{year}")
     public ResponseEntity<Car> createCar(@PathVariable String manufacturer, @PathVariable String model,
