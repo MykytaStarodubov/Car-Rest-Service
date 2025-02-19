@@ -2,6 +2,7 @@ package ua.foxminded.cardatabase.service;
 
 import ua.foxminded.cardatabase.model.Car;
 import ua.foxminded.cardatabase.dao.CarRepository;
+import ua.foxminded.cardatabase.exception.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -34,10 +35,13 @@ public class CarService {
             car.setCarModel(updatedCar.getCarModel());
             car.setCarCategory(updatedCar.getCarCategory());
             return carRepository.save(car);
-        }).orElseThrow(() -> new RuntimeException("Car not found"));
+        }).orElseThrow(() -> new CarNotFoundException("Car with ID " + id + " not found"));
     }
 
     public void deleteCar(Long id) {
+        if (!carRepository.existsById(id)) {
+            throw new CarNotFoundException("Car with ID " + id + " not found");
+        }
         carRepository.deleteById(id);
     }
 

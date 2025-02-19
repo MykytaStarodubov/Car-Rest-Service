@@ -1,78 +1,106 @@
 package ua.foxminded.cardatabase;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import ua.foxminded.cardatabase.model.Car;
-import ua.foxminded.cardatabase.controller.*;
-import ua.foxminded.cardatabase.service.CarService;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mockito;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.test.web.servlet.MockMvc;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
+import ua.foxminded.cardatabase.dao.CarRepository;
+import ua.foxminded.cardatabase.exception.CarNotFoundException;
+import ua.foxminded.cardatabase.model.Car;
+import ua.foxminded.cardatabase.service.*;
+
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+@ExtendWith(MockitoExtension.class)
+class CarServiceTest {
 
-@ExtendWith(SpringExtension.class)
-@WebMvcTest(CarController.class)
-class CarControllerTest {
+    @Mock
+    private CarRepository carRepository;
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockBean
+    @InjectMocks
     private CarService carService;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private Car car;
 
-    @Test
-    void createCar_ShouldReturnCreatedCar() throws Exception {
-        Car car = new Car(1L, "Toyota", 2021, "Corolla", "Sedan");
-
-        Mockito.when(carService.createCar(Mockito.any(Car.class))).thenReturn(car);
-
-        mockMvc.perform(post("/api/v1/manufacturers/Toyota/models/Corolla/2021")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(car)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.carMake").value("Toyota"))
-                .andExpect(jsonPath("$.carModel").value("Corolla"))
-                .andExpect(jsonPath("$.carYear").value(2021))
-                .andExpect(jsonPath("$.carCategory").value("Sedan"));
+    @BeforeEach
+    void setUp() {
+        car = new Car(1L, "Toyota", 2020, "Corolla", "Sedan");
     }
 
     @Test
-    void updateCar_ShouldReturnUpdatedCar() throws Exception {
-        Long carId = 1L;
-        Car updatedCar = new Car(carId, "Honda", 2022, "Civic", "Sedan");
-
-        Mockito.when(carService.updateCar(Mockito.eq(carId), Mockito.any(Car.class)))
-                .thenReturn(updatedCar);
-
-        mockMvc.perform(put("/api/v1/cars/{id}", carId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updatedCar)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.carMake").value("Honda"))
-                .andExpect(jsonPath("$.carModel").value("Civic"))
-                .andExpect(jsonPath("$.carYear").value(2022))
-                .andExpect(jsonPath("$.carCategory").value("Sedan"));
+    void createCar_ShouldReturnSavedCar() {
+        when(carRepository.save(car)).thenReturn(car);
+        Car savedCar = carService.createCar(car);
+        assertNotNull(savedCar);
+        assertEquals("Toyota", savedCar.getCarMake());
     }
 
     @Test
-    void deleteCar_ShouldReturnNoContent() throws Exception {
-        Long carId = 1L;
+    void getCarById_ShouldReturnCar_WhenCarExists() {
+        when(carRepository.findById(1L)).thenReturn(Optional.of(car));
+        Optional<Car> foundCar = carService.getCarById(1L);
+        assertTrue(foundCar.isPresent());
+        assertEquals("Toyota", foundCar.get().getCarMake());
+    }
 
-        Mockito.doNothing().when(carService).deleteCar(carId);
+    @Test
+    void getCarById_ShouldReturnEmpty_WhenCarDoesNotExist() {
+        when(carRepository.findById(1L)).thenReturn(Optional.empty());
+        Optional<Car> foundCar = carService.getCarById(1L);
+        assertFalse(foundCar.isPresent());
+    }
 
-        mockMvc.perform(delete("/api/v1/cars/{id}", carId))
-                .andExpect(status().isNoContent());
+    @Test
+    void getAllCars_ShouldReturnPagedCars() {
+        List<Car> cars = Arrays.asList(car);
+        Page<Car> carPage = new PageImpl<>(cars);
+        Pageable pageable = PageRequest.of(0, 10);
+        when(carRepository.findAll(pageable)).thenReturn(carPage);
+
+        Page<Car> result = carService.getAllCars(pageable);
+        assertEquals(1, result.getTotalElements());
+    }
+
+    @Test
+    void updateCar_ShouldUpdateCar_WhenCarExists() {
+        Car updatedCar = new Car(1L, "Honda", 2021, "Civic", "Sedan");
+        when(carRepository.findById(1L)).thenReturn(Optional.of(car));
+        when(carRepository.save(any(Car.class))).thenReturn(updatedCar);
+
+        Car result = carService.updateCar(1L, updatedCar);
+        assertEquals("Honda", result.getCarMake());
+    }
+
+    @Test
+    void updateCar_ShouldThrowException_WhenCarDoesNotExist() {
+        Car updatedCar = new Car(1L, "Honda", 2021, "Civic", "Sedan");
+        when(carRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(CarNotFoundException.class, () -> carService.updateCar(1L, updatedCar));
+    }
+
+    @Test
+    void deleteCar_ShouldDeleteCar_WhenCarExists() {
+        when(carRepository.existsById(1L)).thenReturn(true);
+        doNothing().when(carRepository).deleteById(1L);
+        assertDoesNotThrow(() -> carService.deleteCar(1L));
+    }
+
+    @Test
+    void deleteCar_ShouldThrowException_WhenCarDoesNotExist() {
+        when(carRepository.existsById(1L)).thenReturn(false);
+        assertThrows(CarNotFoundException.class, () -> carService.deleteCar(1L));
     }
 }
