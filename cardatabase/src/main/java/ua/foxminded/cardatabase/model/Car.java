@@ -25,6 +25,10 @@ public class Car {
         this.carModel = carModel;
         this.carCategory = carCategory;
     }
+    
+    public Car() {
+    }
+
     public Long getCarObjectId() {
         return carObjectId;
     }
