@@ -1,5 +1,10 @@
 package ua.foxminded.cardatabase.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +25,14 @@ public class CarController {
         this.carService = carService;
     }
 
+    @Operation(summary = "Create a new car")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Car created successfully",
+                    content = {@Content(mediaType = "application/json",
+                            schema = @Schema(implementation = Car.class))}),
+            @ApiResponse(responseCode = "400", description = "Invalid input",
+                    content = @Content)
+    })
     @PostMapping("/manufacturers/{manufacturer}/models/{model}/{year}")
     public ResponseEntity<Car> createCar(@PathVariable String manufacturer, @PathVariable String model,
                                          @PathVariable int year, @RequestBody Car car) {
@@ -29,6 +42,11 @@ public class CarController {
         return new ResponseEntity<>(carService.createCar(car), HttpStatus.CREATED);
     }
 
+    @Operation(summary = "Search cars based on filters")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "List of cars found",
+                    content = {@Content(mediaType = "application/json")})
+    })
     @GetMapping("/cars")
     public ResponseEntity<Page<Car>> searchCars(
             @RequestParam(required = false) String manufacturer,
@@ -40,6 +58,14 @@ public class CarController {
         return ResponseEntity.ok(carService.searchCars(manufacturer, model, minYear, maxYear, category, pageable));
     }
 
+    @Operation(summary = "Get a car by Id")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Found car",
+                    content = {@Content(mediaType = "application/json",
+                            schema = @Schema(implementation = Car.class))}),
+            @ApiResponse(responseCode = "404", description = "Car not found",
+                    content = @Content)
+    })
     @GetMapping("/cars/{id}")
     public ResponseEntity<Car> getCarById(@PathVariable Long id) {
         return carService.getCarById(id)
@@ -47,6 +73,14 @@ public class CarController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Car not found"));
     }
 
+    @Operation(summary = "Update an existing car")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Car updated successfully",
+                    content = {@Content(mediaType = "application/json",
+                            schema = @Schema(implementation = Car.class))}),
+            @ApiResponse(responseCode = "404", description = "Car not found",
+                    content = @Content)
+    })
     @PutMapping("/cars/{id}")
     public ResponseEntity<Car> updateCar(@PathVariable Long id, @RequestBody Car car) {
         try {
@@ -56,6 +90,12 @@ public class CarController {
         }
     }
 
+    @Operation(summary = "Delete a car by Id")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Car deleted successfully"),
+            @ApiResponse(responseCode = "404", description = "Car not found",
+                    content = @Content)
+    })
     @DeleteMapping("/cars/{id}")
     public ResponseEntity<Void> deleteCar(@PathVariable Long id) {
         try {
